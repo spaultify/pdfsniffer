@@ -1,8 +1,9 @@
 # PDFSniffer 🐕
+## Note: 🚧 Under Development 🚧
 
 **Sniffing out PDF threats since 2025**
 
-PDFSniffer is a powerful Python-based PDF security scanner that detects malware, suspicious JavaScript, embedded files, and other security threats in PDF documents.
+PDFSniffer is a Python-based PDF security scanner that detects malware, suspicious JavaScript, embedded files, and other security threats in PDF documents.
 
 ```
 ██████╗ ██████╗ ███████╗███████╗███╗   ██╗██╗███████╗███████╗███████╗██████╗ 
@@ -306,9 +307,57 @@ Suggestions and improvements are welcome! Common enhancements:
 - Machine learning-based detection
 - GUI interface
 
-## 📜 License
+### Usage Agreement & User Acknowledgement
 
-This tool is provided as-is for educational and security research purposes.
+By downloading, installing, or using PDFSniffer, you explicitly acknowledge, understand, and agree that:
+
+**1. General Agreement:**
+- You have read and understood this entire disclaimer
+- You agree to be legally bound by all terms and conditions
+- If you disagree, you will immediately cease using this software
+- Continued use constitutes ongoing acceptance of these terms
+
+**2. Software Understanding:**
+- PDFSniffer is provided "AS IS" without any warranties
+- This is a supplementary security tool, not a complete solution
+- The software is for informational, educational, and research purposes
+- No security tool can provide 100% protection or accuracy
+
+**3. Risk & Responsibility:**
+- You use this software entirely at your own risk
+- You assume all responsibility for outcomes and consequences
+- You are responsible for maintaining backups and security practices
+- You will verify results independently through multiple methods
+
+**4. Accuracy & Results:**
+- Scan results may contain false positives or false negatives
+- Detection does not guarantee complete threat identification
+- Non-detection does not guarantee file safety
+- The author is not responsible for result accuracy or completeness
+
+**5. Liability Limitations:**
+- The author is not liable for any damages, losses, or security incidents
+- You accept full responsibility for any actions taken based on results
+- System crashes, data loss, or performance issues may occur
+- No liability exists for undetected threats or incorrect classifications
+
+**6. Professional Use:**
+- This software does not constitute professional security advice
+- Critical systems require consultation with qualified professionals
+- You are responsible for organizational policy compliance
+- Commercial use requires additional due diligence
+
+**7. Legal Compliance:**
+- You will comply with all applicable laws and regulations
+- You will respect data protection and privacy requirements
+- You will not use this software for illegal or malicious purposes
+- You understand jurisdictional limitations may apply
+
+**BY USING THIS SOFTWARE, YOU CONFIRM YOUR ACCEPTANCE OF ALL TERMS ABOVE.**
+
+---
+
+**Use at Your Own Risk - Stay Safe! 🛡️**
 
 ## 🐕 About the Name
 
