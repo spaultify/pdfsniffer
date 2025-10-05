@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-PDF Security Scanner
-Scans PDF files for potential security issues and suspicious elements
+PDFSniffer - PDF Security Scanner
+Sniffs out malware and security threats in PDF files
+Version: 0.2.0
 """
 
 import os
@@ -17,6 +18,21 @@ try:
 except ImportError:
     print("Error: PyPDF2 is required. Install it with: pip install PyPDF2")
     sys.exit(1)
+
+
+def print_logo():
+    """Display PDFSniffer ASCII art logo"""
+    logo = r"""
+██████╗ ██████╗ ███████╗███████╗███╗   ██╗██╗███████╗███████╗███████╗██████╗ 
+██╔══██╗██╔══██╗██╔════╝██╔════╝████╗  ██║██║██╔════╝██╔════╝██╔════╝██╔══██╗
+██████╔╝██║  ██║█████╗  ███████╗██╔██╗ ██║██║█████╗  █████╗  █████╗  ██████╔╝
+██╔═══╝ ██║  ██║██╔══╝  ╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══██╗
+██║     ██████╔╝██║     ███████║██║ ╚████║██║██║     ██║     ███████╗██║  ██║
+╚═╝     ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝
+🐕 Sniffing out PDF threats since 2025
+    """
+    print(logo)
+    print("=" * 70)
 
 
 class PDFScanner:
@@ -139,14 +155,52 @@ class PDFScanner:
 
             # Check for suspicious keywords
             for keyword in self.suspicious_keywords:
-                if keyword in raw_content:
+                positions = []
+                start = 0
+                # Find all occurrences
+                while True:
+                    pos = raw_content.find(keyword, start)
+                    if pos == -1:
+                        break
+                    positions.append(pos)
+                    start = pos + 1
+
+                if positions:
                     keyword_str = keyword.decode("latin-1")
+
+                    # Extract values for each occurrence (limit to first 5)
+                    extracted_values = []
+                    for pos in positions[:5]:
+                        value_info = self.extract_keyword_value(
+                            raw_content, keyword, pos
+                        )
+                        context = self.get_context_around_keyword(raw_content, pos)
+
+                        extracted_values.append(
+                            {
+                                "position": pos,
+                                "value_type": value_info["type"],
+                                "extracted_value": value_info["value"],
+                                "context": context,
+                            }
+                        )
+
+                        # If it's an object reference, try to get the actual object
+                        if value_info["type"] == "object_reference":
+                            obj_content = self.extract_pdf_object_by_reference(
+                                raw_content, value_info["value"]
+                            )
+                            if obj_content:
+                                extracted_values[-1]["referenced_object"] = obj_content
+
                     results["issues"].append(
                         {
                             "type": "suspicious_keyword",
                             "keyword": keyword_str,
                             "message": f"Suspicious keyword found: {keyword_str}",
-                            "count": raw_content.count(keyword),
+                            "count": len(positions),
+                            "total_occurrences": len(positions),
+                            "extracted_values": extracted_values,
                         }
                     )
 
@@ -262,6 +316,19 @@ class PDFScanner:
             for issue in results["issues"]:
                 if isinstance(issue, dict):
                     print(f"  ❌ {issue['message']}")
+
+                    # Show extracted values if available
+                    if "extracted_values" in issue and issue["extracted_values"]:
+                        print(
+                            f"     Found {len(issue['extracted_values'])} occurrence(s):"
+                        )
+                        for i, val in enumerate(
+                            issue["extracted_values"][:2], 1
+                        ):  # Show first 2
+                            print(f"       [{i}] Type: {val['value_type']}")
+                            if val["extracted_value"]:
+                                preview = val["extracted_value"][:80]
+                                print(f"           Value: {preview}...")
                 else:
                     print(f"  ❌ {issue}")
 
@@ -297,13 +364,10 @@ class PDFScanner:
         print(f"Found {len(pdf_files)} PDF file(s) to scan")
 
         all_results = []
-        scan_count = 0
         for pdf_file in pdf_files:
             results = self.scan_file(str(pdf_file))
-            # self.print_results(results)
+            self.print_results(results)
             all_results.append(results)
-            print(f"Scanned {scan_count} file(s)")
-            scan_count += 1
 
         # Summary
         total_issues = sum(len(r["issues"]) for r in all_results)
@@ -327,7 +391,7 @@ class PDFScanner:
 
         if not output_file:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"pdf_scan_results_{timestamp}.csv"
+            output_file = f"pdfniffer_results_{timestamp}.csv"
 
         try:
             with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
@@ -389,48 +453,154 @@ class PDFScanner:
             return None
 
 
+def display_menu():
+    """Display the main menu"""
+    print("\n" + "=" * 70)
+    print("MAIN MENU")
+    print("=" * 70)
+    print("1. Scan a single PDF file")
+    print("2. Scan a directory (includes subdirectories)")
+    print("3. Exit")
+    print("=" * 70)
+
+
+def get_user_choice():
+    """Get and validate user menu choice"""
+    while True:
+        choice = input("\nEnter your choice (1-3): ").strip()
+        if choice in ["1", "2", "3"]:
+            return choice
+        print("❌ Invalid choice. Please enter 1, 2, or 3.")
+
+
+def get_file_path():
+    """Get and validate file path from user"""
+    while True:
+        path = input("\n📄 Enter the PDF file path: ").strip()
+        # Remove quotes if user wrapped path in quotes
+        path = path.strip('"').strip("'")
+
+        if os.path.isfile(path):
+            if path.lower().endswith(".pdf"):
+                return path
+            else:
+                print("❌ File must be a PDF (.pdf extension)")
+        else:
+            print("❌ File not found. Please check the path and try again.")
+            retry = input("Try again? (y/n): ").strip().lower()
+            if retry != "y":
+                return None
+
+
+def get_directory_path():
+    """Get and validate directory path from user"""
+    while True:
+        path = input("\n📁 Enter the directory path: ").strip()
+        # Remove quotes if user wrapped path in quotes
+        path = path.strip('"').strip("'")
+
+        if os.path.isdir(path):
+            return path
+        else:
+            print("❌ Directory not found. Please check the path and try again.")
+            retry = input("Try again? (y/n): ").strip().lower()
+            if retry != "y":
+                return None
+
+
+def ask_export():
+    """Ask user if they want to export results"""
+    while True:
+        choice = input("\n💾 Export results to CSV? (y/n): ").strip().lower()
+        if choice in ["y", "yes"]:
+            filename = input(
+                "Enter filename (press Enter for auto-generated): "
+            ).strip()
+            return True, filename if filename else None
+        elif choice in ["n", "no"]:
+            return False, None
+        else:
+            print("❌ Please enter 'y' or 'n'")
+
+
 def main():
+    print_logo()
     scanner = PDFScanner()
 
-    if len(sys.argv) < 2:
-        print("PDF Security Scanner")
-        print("Usage:")
-        print("  python pdf_scanner.py <file_or_directory> [--export output.csv]")
-        print("\nExamples:")
-        print("  python pdf_scanner.py document.pdf")
-        print("  python pdf_scanner.py ./my_pdfs/")
-        print("  python pdf_scanner.py ./my_pdfs/ --export results.csv")
-        sys.exit(1)
+    # Check if running with command line arguments (legacy support)
+    if len(sys.argv) > 1:
+        # Legacy command-line mode
+        target = sys.argv[1]
 
-    target = sys.argv[1]
+        export_csv = False
+        csv_filename = None
 
-    # Check for export flag
-    export_csv = False
-    csv_filename = None
+        if "--export" in sys.argv:
+            export_csv = True
+            export_index = sys.argv.index("--export")
+            if len(sys.argv) > export_index + 1 and not sys.argv[
+                export_index + 1
+            ].startswith("--"):
+                csv_filename = sys.argv[export_index + 1]
 
-    if "--export" in sys.argv:
-        export_csv = True
-        export_index = sys.argv.index("--export")
-        if len(sys.argv) > export_index + 1 and not sys.argv[
-            export_index + 1
-        ].startswith("--"):
-            csv_filename = sys.argv[export_index + 1]
+        all_results = []
 
-    all_results = []
+        if os.path.isfile(target):
+            results = scanner.scan_file(target)
+            scanner.print_results(results)
+            all_results.append(results)
+        elif os.path.isdir(target):
+            all_results = scanner.scan_directory(target)
+        else:
+            print(f"Error: '{target}' is not a valid file or directory")
+            sys.exit(1)
 
-    if os.path.isfile(target):
-        results = scanner.scan_file(target)
-        # scanner.print_results(results)
-        all_results.append(results)
-    elif os.path.isdir(target):
-        all_results = scanner.scan_directory(target)
-    else:
-        print(f"Error: '{target}' is not a valid file or directory")
-        sys.exit(1)
+        if export_csv and all_results:
+            scanner.export_to_csv(all_results, csv_filename)
 
-    # Export to CSV if requested
-    if export_csv and all_results:
-        scanner.export_to_csv(all_results, csv_filename)
+        return
+
+    # Interactive menu mode
+    while True:
+        display_menu()
+        choice = get_user_choice()
+
+        if choice == "3":
+            print("\n👋 Thank you for using PDFniffer! Stay safe!")
+            print("=" * 70)
+            break
+
+        all_results = []
+
+        if choice == "1":
+            # Scan single file
+            file_path = get_file_path()
+            if file_path:
+                print(f"\n🔍 Scanning file: {file_path}")
+                results = scanner.scan_file(file_path)
+                scanner.print_results(results)
+                all_results.append(results)
+
+        elif choice == "2":
+            # Scan directory
+            dir_path = get_directory_path()
+            if dir_path:
+                print(f"\n🔍 Scanning directory: {dir_path}")
+                all_results = scanner.scan_directory(dir_path)
+
+        # Ask about export if we have results
+        if all_results:
+            export, filename = ask_export()
+            if export:
+                scanner.export_to_csv(all_results, filename)
+
+        # Ask if user wants to continue
+        print("\n" + "=" * 70)
+        continue_choice = input("🔄 Scan more files? (y/n): ").strip().lower()
+        if continue_choice not in ["y", "yes"]:
+            print("\n👋 Thank you for using PDFniffer! Stay safe!")
+            print("=" * 70)
+            break
 
 
 if __name__ == "__main__":
